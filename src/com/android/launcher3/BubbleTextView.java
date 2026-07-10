@@ -25,6 +25,7 @@ import static com.android.launcher3.BubbleTextView.RunningAppState.RUNNING;
 import static com.android.launcher3.Flags.enableContrastTiles;
 import static com.android.launcher3.Flags.enableScalabilityForDesktopExperience;
 import static com.android.launcher3.LauncherPrefs.ALLAPPS_ICON_CUSTOMIZATION;
+import static com.android.launcher3.LauncherPrefs.ICON_BG_SHAPE_ENABLED;
 import static com.android.launcher3.LauncherPrefs.SHOW_DESKTOP_LABELS;
 import static com.android.launcher3.LauncherPrefs.SHOW_DRAWER_LABELS;
 import static com.android.launcher3.graphics.PreloadIconDelegate.extractPreloadDelegate;
@@ -81,11 +82,13 @@ import androidx.annotation.VisibleForTesting;
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
 
 import com.android.launcher3.accessibility.BaseAccessibilityDelegate;
+import com.android.launcher3.customization.IconDatabase;
 import com.android.launcher3.dot.DotInfo;
 import com.android.launcher3.dragndrop.DragOptions.PreDragCondition;
 import com.android.launcher3.dragndrop.DraggableView;
 import com.android.launcher3.folder.FolderIcon;
 import com.android.launcher3.graphics.PreloadIconDelegate;
+import com.android.launcher3.graphics.ShapeDelegate;
 import com.android.launcher3.graphics.ThemeManager;
 import com.android.launcher3.icons.BitmapInfo.DrawableCreationFlags;
 import com.android.launcher3.icons.DotRenderer;
@@ -850,9 +853,43 @@ public class BubbleTextView extends TextView implements ItemInfoUpdateReceiver,
 
     @Override
     public void onDraw(Canvas canvas) {
+        if (shouldDrawIconBgShape()) {
+            drawIconBgShape(canvas);
+        }
         super.onDraw(canvas);
         drawDotIfNecessary(canvas);
         drawRunningAppIndicatorIfNecessary(canvas);
+    }
+
+    /**
+     * Whether we should draw a shape background behind the icon.
+     * Only applicable on the workspace when a non-default icon pack is selected
+     * and the user has enabled the feature.
+     */
+    private boolean shouldDrawIconBgShape() {
+        return mDisplay == DISPLAY_WORKSPACE
+                && ICON_BG_SHAPE_ENABLED.get(getContext())
+                && !IconDatabase.VALUE_DEFAULT.equals(IconDatabase.getGlobal(getContext()));
+    }
+
+    private final Paint mIconBgShapePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+    /**
+     * Draws the current icon shape as a background behind the icon.
+     * Uses the Monet accent2 color (system_accent2_800).
+     */
+    private void drawIconBgShape(Canvas canvas) {
+        ShapeDelegate shape = ThemeManager.INSTANCE.get(getContext()).iconShape;
+        Rect iconBounds = new Rect();
+        getIconBounds(iconBounds);
+        mIconBgShapePaint.setColor(getContext().getColor(android.R.color.system_accent2_800));
+        mIconBgShapePaint.setStyle(Paint.Style.FILL);
+        final int scrollX = getScrollX();
+        final int scrollY = getScrollY();
+        canvas.translate(scrollX, scrollY);
+        shape.drawShape(canvas, iconBounds.left, iconBounds.top,
+                iconBounds.width() / 2f, mIconBgShapePaint);
+        canvas.translate(-scrollX, -scrollY);
     }
 
     /**

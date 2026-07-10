@@ -136,10 +136,14 @@
     <string name="dock_music_search_title">Music search</string>
     <string name="dock_music_search_summary">Start music search on pressing mic icon</string>
     <string name="dock_search_title">Google search bar</string>
+    <string name="dock_search_widget_title">Dock search widget</string>
     <string name="dock_search_summary">Search bar in the bottom dock</string>
     <string name="dock_theme_title">Themed icons</string>
     <string name="dock_theme_summary">Use themed icons for search bar</string>
     <string name="search_radius_title">Corner radius</string>
+
+    <!-- Default crDroid search widget -->
+    <string name="dock_search_widget_default">crDroid Search</string>
 
     <!-- App drawer searchbar -->
     <string name="drawer_search_title">App search bar location</string>
@@ -518,4 +522,8 @@
     <string name="app_info_custom_icon_title">Custom icon</string>
     <string name="app_info_custom_icon_summary">Pick any icon from any icon pack</string>
     <string name="icon_picker_search_hint">Search icons</string>
+
+    <!-- Icon background shape -->
+    <string name="icon_bg_shape_title">Icon background shape</string>
+    <string name="icon_bg_shape_summary">Draw icon pack icons with an adaptive icon background</string>
 </resources>

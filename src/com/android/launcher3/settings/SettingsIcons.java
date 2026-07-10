@@ -300,6 +300,10 @@ public class SettingsIcons extends CollapsingToolbarBaseActivity
                 case IconDatabase.KEY_ICON_PACK:
                     setupIconPackPreference(preference);
                     return true;
+                case "pref_icon_bg_shape_enabled":
+                    // Only show if a non-default icon pack is selected
+                    String iconPack = IconDatabase.getGlobal(getContext());
+                    return !IconDatabase.VALUE_DEFAULT.equals(iconPack);
             }
 
             return true;
