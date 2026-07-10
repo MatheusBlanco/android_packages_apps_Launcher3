@@ -249,6 +249,11 @@
             android:defaultValue="true"
             launcher:iconSpaceReserved="false" />
 
+        <Preference
+            android:key="pref_dock_search_widget"
+            android:title="@string/dock_search_widget_title"
+            android:summary="%s" />
+
         <SwitchPreferenceCompat
             android:key="pref_dock_search_pixel_style"
             android:title="@string/dock_search_pixel_style_title"
