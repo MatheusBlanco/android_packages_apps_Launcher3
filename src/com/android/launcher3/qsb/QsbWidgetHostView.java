@@ -38,6 +38,7 @@ public class QsbWidgetHostView extends NavigableAppWidgetHostView {
     public QsbWidgetHostView(Context context) {
         super(context);
         setFocusable(true);
+        setClickable(true);
         setBackgroundResource(R.drawable.qsb_host_view_focus_bg);
     }
 

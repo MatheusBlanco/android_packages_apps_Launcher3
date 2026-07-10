@@ -879,7 +879,7 @@ public class BubbleTextView extends TextView implements ItemInfoUpdateReceiver,
      * Uses the Monet accent2 color (system_accent2_800).
      */
     private void drawIconBgShape(Canvas canvas) {
-        ShapeDelegate shape = ThemeManager.INSTANCE.get(getContext()).iconShape;
+        ShapeDelegate shape = ThemeManager.INSTANCE.get(getContext()).getIconShape();
         Rect iconBounds = new Rect();
         getIconBounds(iconBounds);
         mIconBgShapePaint.setColor(getContext().getColor(android.R.color.system_accent2_800));

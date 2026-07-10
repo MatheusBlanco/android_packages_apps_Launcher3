@@ -15,3 +15,5 @@ gradle/
 build/
 gradlew*
 .DS_Store
+
+.proxyai

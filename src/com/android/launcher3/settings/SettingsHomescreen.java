@@ -19,6 +19,7 @@ package com.android.launcher3.settings;
 import static androidx.preference.PreferenceFragmentCompat.ARG_PREFERENCE_ROOT;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
@@ -27,6 +28,14 @@ import android.provider.Settings;
 import android.text.TextUtils;
 import android.view.MenuItem;
 import android.view.View;
+import android.content.pm.PackageManager;
+import android.appwidget.AppWidgetManager;
+import android.appwidget.AppWidgetProviderInfo;
+import android.content.ComponentName;
+import android.os.AsyncTask;
+import android.os.Process;
+
+import java.util.List;
 
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
@@ -42,6 +51,7 @@ import androidx.preference.PreferenceGroup;
 import androidx.preference.PreferenceGroup.PreferencePositionCallback;
 import androidx.preference.PreferenceScreen;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.appcompat.app.AlertDialog;
 
 import com.android.launcher3.BuildConfig;
 import com.android.launcher3.Flags;
@@ -50,8 +60,10 @@ import com.android.launcher3.LauncherFiles;
 import com.android.launcher3.LauncherPrefs;
 import com.android.launcher3.R;
 import com.android.launcher3.Utilities;
+import com.android.launcher3.qsb.HotseatQsbWidgetProvider;
 import com.android.launcher3.util.SettingsCache;
 import com.android.launcher3.util.VibratorWrapper;
+import com.android.launcher3.qsb.HotseatQsbWidgetProvider;
 
 import com.android.settingslib.collapsingtoolbar.CollapsingToolbarBaseActivity;
 import com.android.settingslib.widget.SettingsBasePreferenceFragment;
@@ -117,6 +129,7 @@ public class SettingsHomescreen extends CollapsingToolbarBaseActivity
                 LauncherPrefs.HOTSEAT_OPACITY.getSharedPrefKey().equals(key) ||
                 LauncherPrefs.DOCK_SEARCH.getSharedPrefKey().equals(key) ||
                 LauncherPrefs.DOCK_SEARCH_PIXEL_STYLE.getSharedPrefKey().equals(key) ||
+                LauncherPrefs.DOCK_SEARCH_WIDGET.getSharedPrefKey().equals(key) ||
                 LauncherPrefs.DOCK_THEME.getSharedPrefKey().equals(key) ||
                 LauncherPrefs.SEARCH_RADIUS_SIZE.getSharedPrefKey().equals(key) ||
                 LauncherPrefs.DOCK_MUSIC_SEARCH.getSharedPrefKey().equals(key) ||
@@ -196,6 +209,8 @@ public class SettingsHomescreen extends CollapsingToolbarBaseActivity
         private static final String KEY_MINUS_ONE = "pref_enable_minus_one";
         private static final String KEY_GENERAL_CATEGORY = "general_category";
 
+        private static final String KEY_DOCK_SEARCH_WIDGET = "pref_dock_search_widget";
+
         private Preference mShowGoogleAppPref;
         private Preference mShowGoogleBarPref;
 
@@ -248,6 +263,95 @@ public class SettingsHomescreen extends CollapsingToolbarBaseActivity
             if (getActivity() != null && !TextUtils.isEmpty(getPreferenceScreen().getTitle())) {
                 getActivity().setTitle(getPreferenceScreen().getTitle());
             }
+
+            Preference dockSearchWidgetPref = screen.findPreference(KEY_DOCK_SEARCH_WIDGET);
+            if (dockSearchWidgetPref != null) {
+                dockSearchWidgetPref.setOnPreferenceClickListener(pref -> {
+                    showWidgetPickerDialog();
+                    return true;
+                });
+                // Update summary to show current selection
+                updateDockSearchWidgetSummary(dockSearchWidgetPref);
+            }
+        }
+
+        private void showWidgetPickerDialog() {
+            // Build the list on a background thread, then show the dialog
+            new AsyncTask<Void, Void, List<HotseatQsbWidgetProvider.WidgetOption>>() {
+                @Override
+                protected List<HotseatQsbWidgetProvider.WidgetOption> doInBackground(Void... params) {
+                    return HotseatQsbWidgetProvider.getWidgetOptions(getContext());
+                }
+
+                @Override
+                protected void onPostExecute(List<HotseatQsbWidgetProvider.WidgetOption> options) {
+                    if (getActivity() == null) return;
+
+                    CharSequence[] entries = new CharSequence[options.size()];
+                    CharSequence[] entryValues = new CharSequence[options.size()];
+                    for (int i = 0; i < options.size(); i++) {
+                        entries[i] = options.get(i).label;
+                        entryValues[i] = options.get(i).id;
+                    }
+
+                    String currentValue = LauncherPrefs.DOCK_SEARCH_WIDGET.get(getContext());
+
+                    int checkedItem = -1;
+                    for (int i = 0; i < entryValues.length; i++) {
+                        if (entryValues[i].equals(currentValue)) {
+                            checkedItem = i;
+                            break;
+                        }
+                    }
+
+                    new AlertDialog.Builder(getActivity())
+                        .setTitle(R.string.dock_search_widget_title)
+                        .setSingleChoiceItems(
+                            entries,
+                            checkedItem,
+                            (dialog, which) -> {
+                                String selectedId = entryValues[which].toString();
+                                LauncherPrefs.get(getContext()).put(LauncherPrefs.DOCK_SEARCH_WIDGET, selectedId);
+                                dialog.dismiss();
+                                // Refresh the preference summary
+                                Preference pref = findPreference(KEY_DOCK_SEARCH_WIDGET);
+                                if (pref != null) {
+                                    updateDockSearchWidgetSummary(pref);
+                                }
+                                // Queue a launcher restart to pick up the change
+                                LauncherAppState.INSTANCE.executeIfCreated(app -> app.setNeedsRestart());
+                            }
+                        )
+                        .setNegativeButton(android.R.string.cancel, null)
+                        .show();
+                }
+            }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+        }
+
+        private void updateDockSearchWidgetSummary(Preference pref) {
+            String currentValue = LauncherPrefs.DOCK_SEARCH_WIDGET.get(getContext());
+            // for the default, show a friendly name
+            if ("default".equals(currentValue)) {
+                pref.setSummary(R.string.dock_search_widget_default);
+            } else {
+                String label = getWidgetLabel(getContext(), currentValue);
+                pref.setSummary(label != null ? label : currentValue);
+            }
+        }
+
+        @Nullable
+        private static String getWidgetLabel(Context context, String flattened) {
+            ComponentName cn = ComponentName.unflattenFromString(flattened);
+            if (cn == null) return null;
+            AppWidgetManager wm = AppWidgetManager.getInstance(context);
+            for (AppWidgetProviderInfo info :
+                    wm.getInstalledProvidersForProfile(Process.myUserHandle())) {
+                if (info.provider.equals(cn)) {
+                    CharSequence label = info.loadLabel(context.getPackageManager());
+                    return label != null ? label.toString() : cn.getShortClassName();
+                }
+            }
+            return null;
         }
 
         private boolean isKeyInPreferenceGroup(String targetKey, PreferenceGroup parent) {
